@@ -3,9 +3,6 @@
   "version": "0.0.1",
   "es6": true,
   "description": "Automate boring integration tests with fluent-rest based services.",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/jeffpanici75/fluent-rest-tester.git"
