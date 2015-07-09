@@ -195,7 +195,7 @@ export default class fluent_rest_tester {
                         resource_def.fields[field.name] = field;
                     });
                 }
-                resource_def.children = create_resource_defs(v.children);
+                resource_def.children = fluent_rest_tester.create_resource_defs(v.children);
                 resource_defs.push(resource_def);
             }
         });
