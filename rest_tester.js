@@ -151,13 +151,13 @@ export default class fluent_rest_tester {
         Object.keys(this._config.singular || {}).forEach(x => {
             pluralize.addSingularRule(x, this._config.singular[x]);
         });
-        this._all_defs = create_resource_defs(this._config.resources);
+        this._all_defs = fluent_rest_tester.create_resource_defs(this._config.resources);
     }
 
     run() {
         should.exist(this._all_defs);
         should.exist(this._rest_api);        
-        test_resource_defs(this._all_defs, this._rest_api); 
+        this.test_resource_defs(this._all_defs, this._rest_api); 
     }
 
     static create_resource_defs(resources) {
