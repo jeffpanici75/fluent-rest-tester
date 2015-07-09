@@ -277,6 +277,8 @@ export default class fluent_rest_tester {
             if (!x.enabled)
                 return;
 
+            let self = this;
+
             describe(`Resource '${x.name}' HTTP verbs`, function () {
                 let resource_api;
                 let deps;
@@ -419,7 +421,7 @@ export default class fluent_rest_tester {
 
                     if (x.children.length > 0) {
                         describe('CHILDREN', () => {
-                            this.test_resource_defs(
+                            self.test_resource_defs(
                                 x.children, 
                                 () => {
                                     let func = api[pluralize.singular(x.name)];
