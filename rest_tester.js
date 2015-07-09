@@ -294,7 +294,7 @@ export default class fluent_rest_tester {
                     resource_api = func.apply(func, []);
                     
                     deps = {};
-                    this.create_dependent_resources(x, deps, done);
+                    self.create_dependent_resources(x, deps, done);
                 });
 
                 if (x.verbs.get) {
@@ -488,7 +488,7 @@ export default class fluent_rest_tester {
                 }
 
                 after(done => {
-                    this.delete_dependent_resources(deps, done);
+                    self.delete_dependent_resources(deps, done);
                 });
             });
         });
