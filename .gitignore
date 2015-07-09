@@ -1,0 +1,9 @@
+Result
+node_modules
+**/.ntvs_analysis.dat
+**/*~
+**/obj
+**/*.hbs.js
+**/npm-debug.log
+**/*.log
+**/*.swp

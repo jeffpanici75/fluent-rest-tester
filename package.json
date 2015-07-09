@@ -1,0 +1,30 @@
+{
+  "name": "fluent-rest-tester",
+  "version": "0.0.1",
+  "es6": true,
+  "description": "Automate boring integration tests with fluent-rest based services.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/jeffpanici75/fluent-rest-tester.git"
+  },
+  "author": "Jeff Panici <jeff.panici@panici-software.com> (https://panici-software.com)",
+  "license": "GPL-2.0",
+  "bugs": {
+    "url": "https://github.com/jeffpanici75/fluent-rest-tester/issues"
+  },
+  "homepage": "https://github.com/jeffpanici75/fluent-rest-tester#readme",
+  "dependencies": {
+    "mocha": "^2.2.5",
+    "moment": "^2.10.3",
+    "node-uuid": "^1.4.3",
+    "pluralize": "^1.1.2",
+    "should": "^7.0.1",
+    "traceur": "0.0.90",
+    "traceur-source-maps": "^1.0.6",
+    "url-template": "^2.0.6",
+    "yamljs": "^0.2.3"
+  }
+}
