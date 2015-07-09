@@ -332,7 +332,7 @@ export default class fluent_rest_tester {
                                             done();
                                             return;
                                         }
-                                        this._rest_api.resource_at(first_page._links.pages[n].href)
+                                        self._rest_api.resource_at(first_page._links.pages[n].href)
                                             .then(result => {
                                                 should.exist(result);
                                                 should.exist(result.response);
