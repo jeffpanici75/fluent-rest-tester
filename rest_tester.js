@@ -206,7 +206,7 @@ export default class fluent_rest_tester {
         for (let i = 0; i < defs.length; i++) {
             if (defs[i].name === name)
                 return defs[i];
-            return find_resource_def(name, defs[i].children);
+            return this.find_resource_def(name, defs[i].children);
         }
     }
 
@@ -221,7 +221,7 @@ export default class fluent_rest_tester {
                 throw new Error(`No client proxy for ${f.from}.`);
             let items = f.from.split('/');
             items.forEach(x => {
-                let target_def = find_resource_def(x, this._all_defs);
+                let target_def = this.find_resource_def(x, this._all_defs);
                 if (!target_def)
                     throw new Error(`No resource_def for ${x}.`);
             });
