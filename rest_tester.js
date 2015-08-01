@@ -202,6 +202,14 @@ export default class fluent_rest_tester {
         return resource_defs;
     }
 
+    find_resource_def(name, defs) {
+        for (let i = 0; i < defs.length; i++) {
+            if (defs[i].name === name)
+                return defs[i];
+            return find_resource_def(name, defs[i].children);
+        }
+    }
+
     get_dependent_resources(def, resources) {
         let keys = Object.keys(def.fields);
         keys.forEach(k => {
@@ -211,9 +219,12 @@ export default class fluent_rest_tester {
             let func = this._rest_api[f.from];
             if (!func)
                 throw new Error(`No client proxy for ${f.from}.`);
-            let target_def = this._all_defs.find(x => x.name === f.from);
-            if (!target_def)
-                throw new Error(`No resource_def for ${f.from}.`);
+            let items = f.from.split('/');
+            items.forEach(x => {
+                let target_def = find_resource_def(x, this._all_defs);
+                if (!target_def)
+                    throw new Error(`No resource_def for ${x}.`);
+            });
             resources.unshift({ func, def: target_def, id_name: f.id || 'id' });
             this.get_dependent_resources(target_def, resources);
         });
