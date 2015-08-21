@@ -44,20 +44,27 @@ function assert_self_link(result, def, api) {
 }
 
 function make_test_object(def, deps) {
+    console.log('deps = ' + JSON.stringify(deps));
     let o = {};
     let keys = Object.keys(def.fields);
     keys.forEach(y => {
         let f = def.fields[y];
         if (f.from) {
             if (f.from !== '<parent>') {
-                let dependent = deps[f.from];
-                if (!dependent) {
-                    throw new Error(`Dependent resource missing for ${f.name}:${f.from}, deps=${JSON.stringify(deps)}.`);
-                }
-                o[f.name] = dependent.items[dependent.index].id;
-                dependent.index++;
-                if (dependent.index >= dependent.items.length)
-                    dependent.index = 0;
+                let items = f.from.split('/');
+                let key = '';
+                items.forEach(x => {
+                    key += `/${x}`;
+                    console.log('key = %s', key);
+                    let dependent = deps[key];
+                    if (!dependent) {
+                        throw new Error(`Dependent resource missing for ${f.name}:${key}, deps=${JSON.stringify(deps)}.`);
+                    }
+                    o[f.name] = dependent.items[dependent.index].id;
+                    dependent.index++;
+                    if (dependent.index >= dependent.items.length)
+                        dependent.index = 0;
+                });
             }
         } else if (f.values && f.values.length > 0) {
             let idx = Math.floor(Math.random() * f.values.length) + 0;
@@ -206,7 +213,6 @@ export default class fluent_rest_tester {
         for (let i = 0; i < defs.length; i++) {
             if (defs[i].name === name)
                 return defs[i];
-            return this.find_resource_def(name, defs[i].children);
         }
     }
 
@@ -216,17 +222,29 @@ export default class fluent_rest_tester {
             let f = def.fields[k];
             if (!f.from || f.from === '<parent>')
                 return;
-            let func = this._rest_api[f.from];
-            if (!func)
-                throw new Error(`No client proxy for ${f.from}.`);
             let items = f.from.split('/');
+            let func = this._rest_api;
+            let defs = this._all_defs;
+            let key = '';
+            let index = 0;
             items.forEach(x => {
-                let target_def = this.find_resource_def(x, this._all_defs);
+                key += `/${x}`;
+                if (typeof func === 'function')
+                    func = func.apply(func);
+                func = func[x];
+                if (!func)
+                    throw new Error(`No client proxy for ${x}.`);
+                let target_def = this.find_resource_def(x, defs);
                 if (!target_def)
                     throw new Error(`No resource_def for ${x}.`);
+                let obj = {
+                    key, func, def: target_def, id_name: f.id || 'id'
+                };
+                resources.unshift(obj);
+                this.get_dependent_resources(target_def, resources);
+                defs = target_def.children;
+                index++;
             });
-            resources.unshift({ func, def: target_def, id_name: f.id || 'id' });
-            this.get_dependent_resources(target_def, resources);
         });
     }
 
@@ -245,10 +263,10 @@ export default class fluent_rest_tester {
                     console.log('ERROR: %s, message = %s', x.def.name, result.resource.message);
                 else {
                     let id = result.resource[x.id_name];
-                    let temp = deps[x.def.name];
+                    let temp = deps[x.key];
                     if (!temp) { 
                         temp = { items: [], index: 0 };
-                        deps[x.def.name] = temp;
+                        deps[x.key] = temp;
                     }
                     temp.items.push({ id, func: x.func });
                 }
