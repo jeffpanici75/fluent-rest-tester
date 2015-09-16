@@ -1,3 +1,5 @@
+set -e
+
 if [[ -z "${CI}" ]] ;
 then
     echo "This script can only be run from within the continuous integration environment."
