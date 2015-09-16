@@ -8,7 +8,7 @@ if [[ "${TRAVIS_BRANCH}" == "environments/npm" ]] ;
 then
     yes '' | npm adduser	
     npm publish
-	exit $?
+    exit $?
 fi
 
 echo "Unknown branch: ${TRAVIS_BRANCH}, skipping deployment."
