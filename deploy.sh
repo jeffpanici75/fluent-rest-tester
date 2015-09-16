@@ -1,5 +1,3 @@
-set -e
-
 if [[ -z "${CI}" ]] ;
 then
     echo "This script can only be run from within the continuous integration environment."
@@ -8,8 +6,9 @@ fi
 
 if [[ "${TRAVIS_BRANCH}" == "environments/npm" ]] ;
 then
-    yes '' | npm adduser
+    yes '' | npm adduser	
     npm publish
+	exit $?
 fi
 
 echo "Unknown branch: ${TRAVIS_BRANCH}, skipping deployment."
