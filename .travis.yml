@@ -8,7 +8,7 @@ notifications:
     secure: GGEj/Le86q43uut1t80489nQrhgumXpB9TtYjsiXJpqnljU5TM39EEPWUOR6/a3+UMmKbEIoupm0bBQqokeEc4PE/aXIL5RVCWzdRNVP1kvqMi1giKtqhj3ni3cyRSALmSjYNNQdsBrpbUMdbSfoR3nqNNcLIkmJUNkzSeevVQztyWJQGQ0dNu3Uf4B9BAwuoeexP/9UZlmC5kw0abVukD3tYiH0xHkwjmkhPNHlrOQFW9u8Id6uhTqUOouGQlIzD7yJgyE8joTUO0XaGwWVD3pbBkr/amG0ARzt/Cn5bGuiAMG70JRNL/FGopcX+7YlCS75DqCgNwvk9dmWa/d/hiOuLNGrLKbYb3sDgbMHYM+jyb7pqZptvsUH3nkZJQK+5cEhaixx56v6PZnvHlonpneHukqYb+X6BKKFYYgLH/ZdA14ywF4ch3GJWv2Oo4dIsR1vLc19n6ZIVzaZqjMPKZo//bsOA5HMh/hQSoRL8fWDTvftQiUCDhmk9I0CWJ/cfspORqjIMARg8da4YkIIRs70yAak5kr1/A0WzaQVXopema7K5PEvCbqnUz8AVU7OUdZmjoujX05yI8+4GhVtct6n32w8MIV9wbBY9qjpoQIaH9BbWVRl7+uKvBwLeWhxeyV5Gay8hn68TqgTtV/eQwA5SrBwa6cAbS+l9FaZHx8=
 
 node_js:
-- iojs-v2.4.0
+  - v4.0.0
 
 before_install:
   - openssl aes-256-cbc -K $encrypted_2aa2a741653b_key -iv $encrypted_2aa2a741653b_iv -in .npmrc.enc -out .npmrc -d

@@ -44,27 +44,28 @@ function assert_self_link(result, def, api) {
 }
 
 function make_test_object(def, deps) {
-    console.log('deps = ' + JSON.stringify(deps));
+    function get_dependent(name, from) {
+        let dependent = deps[from];
+        if (!dependent) {
+            throw new Error(`Dependent resource missing for ${name}:${from}, deps=${JSON.stringify(deps)}.`);
+        }
+        let temp = dependent.items[dependent.index].id;
+        dependent.index++;
+        if (dependent.index >= dependent.items.length)
+            dependent.index = 0;
+        return temp;
+    }
+
     let o = {};
     let keys = Object.keys(def.fields);
     keys.forEach(y => {
         let f = def.fields[y];
         if (f.from) {
             if (f.from !== '<parent>') {
-                let items = f.from.split('/');
-                let key = '';
-                items.forEach(x => {
-                    key += `/${x}`;
-                    console.log('key = %s', key);
-                    let dependent = deps[key];
-                    if (!dependent) {
-                        throw new Error(`Dependent resource missing for ${f.name}:${key}, deps=${JSON.stringify(deps)}.`);
-                    }
-                    o[f.name] = dependent.items[dependent.index].id;
-                    dependent.index++;
-                    if (dependent.index >= dependent.items.length)
-                        dependent.index = 0;
-                });
+                o[f.name] = get_dependent(f.name, `/${f.from}`);
+            }
+            else {
+                o[f.name] = get_dependent(f.name, `/${def.parent.name}`);
             }
         } else if (f.values && f.values.length > 0) {
             let idx = Math.floor(Math.random() * f.values.length) + 0;
@@ -167,7 +168,7 @@ export default class fluent_rest_tester {
         this.test_resource_defs(this._all_defs, this._rest_api); 
     }
 
-    static create_resource_defs(resources) {
+    static create_resource_defs(resources, parent) {
         if (!resources || typeof resources !== 'object')
             return [];
         let resource_defs = [];
@@ -175,6 +176,7 @@ export default class fluent_rest_tester {
             let v = resources[x];
             if (v) {
                 let resource_def = {
+                    parent,
                     name: x,
                     fields: {},
                     enabled: true,
@@ -202,7 +204,7 @@ export default class fluent_rest_tester {
                         resource_def.fields[field.name] = field;
                     });
                 }
-                resource_def.children = fluent_rest_tester.create_resource_defs(v.children);
+                resource_def.children = fluent_rest_tester.create_resource_defs(v.children, resource_def);
                 resource_defs.push(resource_def);
             }
         });
@@ -252,7 +254,7 @@ export default class fluent_rest_tester {
         let resources = [];
         this.get_dependent_resources(def, resources);
         function next_resource(idx) {
-            if (idx >= resources.length) {
+            if (idx < 0) {
                 done();
                 return;
             }
@@ -270,10 +272,10 @@ export default class fluent_rest_tester {
                     }
                     temp.items.push({ id, func: x.func });
                 }
-                next_resource(idx + 1);
+                next_resource(idx - 1);
             });
         }
-        next_resource(0);
+        next_resource(resources.length - 1);
     }
 
     delete_dependent_resources(deps, done) {
