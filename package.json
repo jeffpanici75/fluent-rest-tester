@@ -1,6 +1,6 @@
 {
   "name": "fluent-rest-tester",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "es6": true,
   "description": "Automate boring integration tests with fluent-rest based services.",
   "repository": {
@@ -13,9 +13,6 @@
     "url": "https://github.com/jeffpanici75/fluent-rest-tester/issues"
   },
   "homepage": "https://github.com/jeffpanici75/fluent-rest-tester#readme",
-  "bin": {
-    "rest_tester_bootstrap.js": "./rest_tester_bootstrap.js"
-  },
   "dependencies": {
     "mocha": "^2.2.5",
     "moment": "^2.10.6",
