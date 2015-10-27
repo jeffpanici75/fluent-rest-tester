@@ -1,6 +1,6 @@
 {
   "name": "fluent-rest-tester",
-  "version": "0.0.16",
+  "version": "0.0.112",
   "es6": true,
   "description": "Automate boring integration tests with fluent-rest based services.",
   "repository": {

@@ -1,3 +1,5 @@
+/* @flow */
+
 import yaml from 'yamljs';
 import moment from 'moment';
 import should from 'should';
@@ -5,6 +7,8 @@ import crypto from 'crypto';
 import uuid from 'node-uuid';
 import pluralize from 'pluralize';
 import url_template from 'url-template';
+
+const parent_ref = "<parent>";
 
 function random_string(length, chars) {
     chars = chars || 'abcdefghijklmnopqrstuwxyzABCDEFGHIJKLMNOPQRSTUWXYZ0123456789';
@@ -43,64 +47,9 @@ function assert_self_link(result, def, api) {
     uri.should.be.exactly(result.resource._links.self.href).and.be.a.String();
 }
 
-function make_test_object(def, deps) {
-    function get_dependent(name, from) {
-        let dependent = deps[from];
-        if (!dependent) {
-            throw new Error(`Dependent resource missing for ${name}:${from}, deps=${JSON.stringify(deps)}.`);
-        }
-        let temp = dependent.items[dependent.index].id;
-        dependent.index++;
-        if (dependent.index >= dependent.items.length)
-            dependent.index = 0;
-        return temp;
-    }
-
-    let o = {};
-    let keys = Object.keys(def.fields);
-    keys.forEach(y => {
-        let f = def.fields[y];
-        if (f.from) {
-            if (f.from !== '<parent>') {
-                o[f.name] = get_dependent(f.name, `/${f.from}`);
-            }
-            else {
-                o[f.name] = get_dependent(f.name, `/${def.parent.name}`);
-            }
-        } else if (f.values && f.values.length > 0) {
-            let idx = Math.floor(Math.random() * f.values.length) + 0;
-            o[f.name] = f.values[idx];
-        } else {
-            switch (f.type) {
-                case 'number':
-                    o[f.name] = Math.floor(Math.random() * 65536) + 0;
-                    break;
-                case 'string':
-                    let len = f.max_length || 512;
-                    o[f.name] = random_string(len);
-                    break;
-                case 'date':
-                    o[f.name] = moment().format();
-                    break;
-                case 'uuid':
-                    o[f.name] = uuid.v4();
-                    break;
-                case 'bool':
-                    let value = Math.floor(Math.random() * 65536) + 1;                    
-                    o[f.name] = value % 2 === 0 ? true : false;
-                    break;
-                case 'json':
-                    o[f.name] = {};
-                    break;
-            }
-        }
-    });
-    return o;
-}
-
 class field_def {
     static get valid_types() {
-        return ['sequence', 'number', 'string', 'date', 'timestamp', 'json', 'uuid', 'bool'];
+        return ['sequence', 'number', 'string', 'date', 'timestamp', 'json', 'uuid', 'bool', 'binary'];
     }
 
     constructor(field) {
@@ -178,6 +127,7 @@ export default class fluent_rest_tester {
                 let resource_def = {
                     parent,
                     name: x,
+                    deps: [],
                     fields: {},
                     enabled: true,
                     id_name: `${pluralize.singular(x)}_id`,
@@ -211,93 +161,146 @@ export default class fluent_rest_tester {
         return resource_defs;
     }
 
-    find_resource_def(name, defs) {
-        for (let i = 0; i < defs.length; i++) {
-            if (defs[i].name === name)
-                return defs[i];
-        }
-    }
-
-    get_dependent_resources(def, resources) {
-        let keys = Object.keys(def.fields);
-        keys.forEach(k => {
+    make_test_object(def) {
+        let o = {};
+        let deps = [];
+        Object.keys(def.fields).forEach(k => {
             let f = def.fields[k];
-            if (!f.from || f.from === '<parent>')
-                return;
-            let items = f.from.split('/');
-            let func = this._rest_api;
-            let defs = this._all_defs;
-            let key = '';
-            let index = 0;
-            items.forEach(x => {
-                key += `/${x}`;
-                if (typeof func === 'function')
-                    func = func.apply(func);
-                func = func[x];
-                if (!func)
-                    throw new Error(`No client proxy for ${x}.`);
-                let target_def = this.find_resource_def(x, defs);
-                if (!target_def)
-                    throw new Error(`No resource_def for ${x}.`);
-                let obj = {
-                    key, func, def: target_def, id_name: f.id || 'id'
-                };
-                resources.unshift(obj);
-                this.get_dependent_resources(target_def, resources);
-                defs = target_def.children;
-                index++;
-            });
-        });
-    }
-
-    create_dependent_resources(def, deps, done) {
-        let resources = [];
-        this.get_dependent_resources(def, resources);
-        function next_resource(idx) {
-            if (idx < 0) {
-                done();
-                return;
-            }
-            let x = resources[idx];
-            let obj = make_test_object(x.def, deps);
-            x.func.apply(x.func).create(obj).then(result => {
-                if (result.resource.message)
-                    console.log('ERROR: %s, message = %s', x.def.name, result.resource.message);
-                else {
-                    let id = result.resource[x.id_name];
-                    let temp = deps[x.key];
-                    if (!temp) { 
-                        temp = { items: [], index: 0 };
-                        deps[x.key] = temp;
-                    }
-                    temp.items.push({ id, func: x.func });
+            if (f.from) {
+                if (f.from === parent_ref) {
+                    if (def.parent.last)
+                        o[f.name] = def.parent.last.id;
+                    else
+                        deps.push({ field: f.name, from: def.parent.name });
+                } else {
+                    deps.push({ field: f.name, from: f.from });
                 }
-                next_resource(idx - 1);
-            });
-        }
-        next_resource(resources.length - 1);
+            } else if (f.values && f.values.length > 0) {
+                let idx = Math.floor(Math.random() * f.values.length) + 0;
+                o[f.name] = f.values[idx];
+            } else {
+                switch (f.type) {
+                    case 'number':
+                        o[f.name] = Math.floor(Math.random() * 65536) + 0;
+                        break;
+                    case 'string':
+                        let len = f.max_length || 512;
+                        o[f.name] = random_string(len);
+                        break;
+                    case 'date':
+                        o[f.name] = moment().format();
+                        break;
+                    case 'uuid':
+                        o[f.name] = uuid.v4();
+                        break;
+                    case 'bool':
+                        let value = Math.floor(Math.random() * 65536) + 1;                    
+                        o[f.name] = value % 2 === 0 ? true : false;
+                        break;
+                    case 'json':
+                        o[f.name] = {};
+                        break;
+                    case 'binary':
+                        // XXX: Implement binary data
+                        break;
+                }
+            }
+        });
+        return { instance: o, deps };
     }
 
-    delete_dependent_resources(deps, done) {
-        if (!deps) {
-            done();
-            return;
-        }
-        let items = [];
-        Object.keys(deps).forEach(x => {
-            items = items.concat(deps[x].items);
-        });
-        function delete_item(idx) {
-            if (idx >= items.length) {
-                done();
-                return;
+    find_resource_def(name) {
+        let defs = this._all_defs;
+        let segments = name.split('/');
+        let current = null;
+        while (segments.length > 0) {
+            let segment = segments.shift();
+            for (let i = 0; i < defs.length; i++) {
+                if (defs[i].name === segment) {
+                    current = defs[i];
+                    defs = current.children;
+                    break;
+                }
             }
-            let x = items[idx];
-            x.func.apply(x.func).delete_by_id(x.id).then(result => {
-                delete_item(idx + 1);
-            });
         }
-        delete_item(0);
+        return current;
+    }
+
+    get_api_for_def(def) {
+        let current = def;
+        let resources = [];
+        while (true) {
+            resources.unshift(current.name);
+            current = current.parent;
+            if (!current)
+                break;
+        }
+        let api = this._rest_api;
+        let js = '';
+        while (resources.length > 0) {
+            if (js.length > 0)
+                js += '.';
+            let args = [];
+            let is_even = (resources.length % 2) === 0;
+            let resource_name = resources.shift();
+            if (is_even) {
+                let name = pluralize.singular(resource_name);
+                api = api[name];
+                args.push(def.parent.last.id);
+                js += `${name}(${def.parent.last.id})`;
+            } else {
+                api = api[resource_name];
+                js += `${resource_name}()`;
+            }
+            api = api.apply(api, args);
+        }
+        console.log(js);
+        return api;
+    }
+
+    async create_resource_from_def(def) {
+        let obj = this.make_test_object(def);        
+        for (let i = 0; i < obj.deps.length; i++ ) {
+            let x = obj.deps[i];
+            let dep_def = this.find_resource_def(x.from);
+            if (!dep_def)
+                throw new Error(`No resource_def for ${x.from}.`);
+            let result = await this.create_resource_from_def(dep_def);
+            if (!result || !result.resource)
+                throw new Error(`Error creating resource_def ${x.from}.`);
+            obj.instance[x.field] = result.resource.id;
+        }
+        if (!def.last) {
+            let api = this.get_api_for_def(def)
+            let result = await api.create(obj.instance);
+            if (result) {
+                def.last = { id: result.resource.id, obj: result };
+            }
+            return result;
+        }
+        return def.last.obj;
+    }
+
+    async delete_dependent_resources(def) {
+        if (!def || !def.last)
+            return;
+        let keys = Object.keys(def.fields);
+        for (let x = 0; x < keys.length; x++) {
+            let current_field = def.fields[keys[x]];
+            if (current_field.from 
+            && current_field.from !== parent_ref 
+            && (!def.parent || def.parent.name.indexOf(current_field.from) < 0)) {
+                let temp_def = this.find_resource_def(current_field.from);
+                if (!temp_def)
+                    throw new Error(`No resource_def for ${current_field.from}.`);
+                if (temp_def.last) {
+                    await this.delete_dependent_resources(temp_def);
+                    let api = this.get_api_for_def(temp_def);
+                    await api.delete_by_id(temp_def.last.id);
+                    temp_def.last = null;
+                }
+            }
+        }
     }
 
     test_resource_defs(defs, api) {
@@ -312,7 +315,6 @@ export default class fluent_rest_tester {
 
             describe(`Resource '${x.name}' HTTP verbs`, function () {
                 let resource_api;
-                let deps;
 
                 if (x.timeout)
                     this.timeout(x.timeout);
@@ -323,9 +325,7 @@ export default class fluent_rest_tester {
                     if (!func)
                         throw new Error(`Client resource ${api.name} is missing ${x.name}.`);
                     resource_api = func.apply(func, []);
-                    
-                    deps = {};
-                    self.create_dependent_resources(x, deps, done);
+                    done();
                 });
 
                 if (x.verbs.get) {
@@ -426,8 +426,8 @@ export default class fluent_rest_tester {
 
                 if (x.verbs.post) {
                     describe('POST', () => {
-                        it('should create a new resource', done => {                        
-                            resource_api.create(make_test_object(x, deps))
+                        it('should create a new resource', done => {
+                            self.create_resource_from_def(x)
                                 .then(result => {
                                     should.exist(result);
                                     should.exist(result.response);
@@ -443,7 +443,7 @@ export default class fluent_rest_tester {
                                     assert_self_link(result, x, resource_api);
 
                                     id = result.resource.id;
-
+                                    
                                     done();
                                 })
                                 .catch(done);
@@ -464,7 +464,7 @@ export default class fluent_rest_tester {
                     if (x.verbs.put) {
                         describe('PUT', () => {
                             it('should update an existing resource', done => {
-                                resource_api.update(id, make_test_object(x, deps))
+                                resource_api.update(id, self.make_test_object(x).instance)
                                     .then(result => {
                                         should.exist(result);
                                         should.exist(result.response);
@@ -510,6 +510,10 @@ export default class fluent_rest_tester {
                                         should.not.exist(result.resource._links);
                                         should.not.exist(result.resource._embedded);
 
+                                        return self.delete_dependent_resources(x);
+                                    })
+                                    .then(result => {
+                                        x.last = null;
                                         done();
                                     })
                                     .catch(done);
@@ -517,10 +521,6 @@ export default class fluent_rest_tester {
                         });
                     }
                 }
-
-                after(done => {
-                    self.delete_dependent_resources(deps, done);
-                });
             });
         });
     }
