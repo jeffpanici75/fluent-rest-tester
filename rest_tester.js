@@ -65,6 +65,7 @@ class field_def {
         this._ignore = options.ignore || false;
         this._from = options.from || null;
         this._values = options.values || null;
+        this._dont_delete = options.dont_delete || false;
     }
 
     get name() {
@@ -90,6 +91,10 @@ class field_def {
     get max_length() {
         return this._max_length;
     }
+
+    get dont_delete() {
+        return this._dont_delete;
+    }
 }
 
 export default class fluent_rest_tester {
@@ -114,7 +119,11 @@ export default class fluent_rest_tester {
     run() {
         should.exist(this._all_defs);
         should.exist(this._rest_api);        
-        this.test_resource_defs(this._all_defs, this._rest_api); 
+        after(async done => {
+            await this.cleanup_resource_defs(this._all_defs);
+            done();
+        });
+        this.test_resource_defs(this._all_defs, this._rest_api);
     }
 
     static create_resource_defs(resources, parent) {
@@ -254,7 +263,7 @@ export default class fluent_rest_tester {
             }
             api = api.apply(api, args);
         }
-        console.log(js);
+        //console.log(js);
         return api;
     }
 
@@ -287,7 +296,8 @@ export default class fluent_rest_tester {
         let keys = Object.keys(def.fields);
         for (let x = 0; x < keys.length; x++) {
             let current_field = def.fields[keys[x]];
-            if (current_field.from 
+            if (!current_field.dont_delete
+            && current_field.from 
             && current_field.from !== parent_ref 
             && (!def.parent || def.parent.name.indexOf(current_field.from) < 0)) {
                 let temp_def = this.find_resource_def(current_field.from);
@@ -301,6 +311,10 @@ export default class fluent_rest_tester {
                 }
             }
         }
+    }
+
+    async cleanup_resource_defs(defs) {
+        // XXX: Need to clean up orphaned records
     }
 
     test_resource_defs(defs, api) {
