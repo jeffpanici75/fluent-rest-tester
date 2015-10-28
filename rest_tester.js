@@ -102,6 +102,7 @@ export default class fluent_rest_tester {
         this._rest_api = api;
         this._config = null;
         this._all_defs = [];
+        this._cleanups = [];
     }
 
     load_config(path) {
@@ -120,7 +121,7 @@ export default class fluent_rest_tester {
         should.exist(this._all_defs);
         should.exist(this._rest_api);        
         after(async done => {
-            await this.cleanup_resource_defs(this._all_defs);
+            await this.cleanup_orphans();
             done();
         });
         this.test_resource_defs(this._all_defs, this._rest_api);
@@ -296,25 +297,39 @@ export default class fluent_rest_tester {
         let keys = Object.keys(def.fields);
         for (let x = 0; x < keys.length; x++) {
             let current_field = def.fields[keys[x]];
-            if (!current_field.dont_delete
-            && current_field.from 
-            && current_field.from !== parent_ref 
-            && (!def.parent || def.parent.name.indexOf(current_field.from) < 0)) {
+            if (current_field.from 
+            &&  current_field.from !== parent_ref) {
                 let temp_def = this.find_resource_def(current_field.from);
                 if (!temp_def)
                     throw new Error(`No resource_def for ${current_field.from}.`);
                 if (temp_def.last) {
-                    await this.delete_dependent_resources(temp_def);
-                    let api = this.get_api_for_def(temp_def);
-                    await api.delete_by_id(temp_def.last.id);
-                    temp_def.last = null;
+                    if (!current_field.dont_delete 
+                    && (!def.parent || def.parent.name.indexOf(current_field.from) < 0)) {
+                        await this.delete_dependent_resources(temp_def);
+                        let api = this.get_api_for_def(temp_def);
+                        let result = await api.delete_by_id(temp_def.last.id);
+                        if (result.response.statusCode !== 204) {
+                            this._cleanups.push({ def: temp_def, id: temp_def.last.id });
+                        }
+                        temp_def.last = null;
+                    } else {
+                        this._cleanups.push({ def: temp_def, id: temp_def.last.id });
+                    }
                 }
             }
         }
     }
 
-    async cleanup_resource_defs(defs) {
-        // XXX: Need to clean up orphaned records
+    async cleanup_orphans() {
+        let deleted = [];
+        while (this._cleanups.length > 0) {
+            let current = this._cleanups.shift();
+            if (deleted.indexOf(current.id) > -1)
+                continue;
+            let api = this.get_api_for_def(current.def);
+            await api.delete_by_id(current.id);
+            deleted.push(current.id);
+        }
     }
 
     test_resource_defs(defs, api) {
